@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Vex1xVPN</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --accent: #00d4ff;
+    --bg: #0f0c29;
+    --bg2: #302b63;
+    --card: rgba(255,255,255,0.05);
+    --card-border: rgba(255,255,255,0.1);
+    --text: #fff;
+    --text-dim: #9aa0b5;
+  }
+
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--bg), var(--bg2), #24243e);
+    color: var(--text);
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    overflow-x: hidden;
+    transition: background 0.4s;
+  }
+  body.battery-saver { background: #000 !important; }
+  body.battery-saver * { animation: none !important; transition: none !important; }
+
+  .app { max-width: 480px; margin: 0 auto; padding: 16px 18px 30px; min-height: 100vh; }
+
+  h1 {
+    text-align: center; font-size: 24px; margin-bottom: 6px;
+    background: linear-gradient(90deg, var(--accent), #7b2ff7);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { text-align: center; font-size: 13px; color: var(--text-dim); margin-bottom: 20px; }
+
+  .btn {
+    width: 100%; padding: 14px; border-radius: 14px;
+    border: none; cursor: pointer; font-size: 15px; font-weight: 600;
+    color: #fff; background: linear-gradient(135deg, #7b2ff7, var(--accent));
+    transition: 0.25s; margin-top: 6px;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .msg { font-size: 12px; text-align: center; margin-top: 10px; min-height: 16px; }
+  .msg.err { color: #ff5c7a; }
+  .msg.ok  { color: #00ffa3; }
+
+  .screen { display: none; }
+  .screen.active { display: block; animation: fade 0.25s; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .user { display: flex; align-items: center; gap: 10px; }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #7b2ff7, var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+    background-size: cover; background-position: center;
+  }
+  .user .name { font-size: 14px; font-weight: 600; }
+  .user .plan { font-size: 11px; color: #00ffa3; }
+
+  .top-actions { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: var(--card); border: 1px solid var(--card-border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; transition: 0.25s;
+    position: relative;
+  }
+  .icon-btn:active { transform: scale(0.92); }
+  .icon-btn .dot {
+    position: absolute; top: 4px; right: 4px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #00ffa3; box-shadow: 0 0 8px #00ffa3;
+    display: none;
+  }
+  .icon-btn.has-active .dot { display: block; }
+
+  .power-wrap { display: flex; justify-content: center; margin: 20px 0; }
+  .power-btn {
+    width: 160px; height: 160px; border-radius: 50%;
+    border: none; cursor: pointer;
+    background: radial-gradient(circle, #2a2a3e, #14141f);
+    box-shadow: 0 0 0 6px rgba(255,255,255,0.05), 0 0 40px rgba(123,47,247,0.3);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: 0.4s ease; color: #fff;
+  }
+  .power-btn:active { transform: scale(0.96); }
+  .power-btn .icon { font-size: 40px; margin-bottom: 6px; }
+  .power-btn .label {
+    font-size: 14px; letter-spacing: 1px;
+    text-transform: uppercase; color: #b0b6cc;
+  }
+  .power-btn.connected {
+    background: radial-gradient(circle, var(--accent), #7b2ff7);
+    box-shadow: 0 0 0 6px rgba(0,212,255,0.15), 0 0 60px rgba(0,212,255,0.7);
+    animation: pulse 2s infinite;
+  }
+  .power-btn.connected .label { color: #fff; }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 6px rgba(0,212,255,0.15), 0 0 60px rgba(0,212,255,0.7); }
+    50%     { box-shadow: 0 0 0 14px rgba(0,212,255,0.05), 0 0 80px rgba(123,47,247,0.9); }
+  }
+
+  .status { text-align: center; font-size: 14px; color: var(--text-dim); margin-bottom: 18px; min-height: 20px; }
+  .status.on { color: #00ffa3; }
+
+  .section-title {
+    font-size: 12px; text-transform: uppercase;
+    color: #7a8099; letter-spacing: 1px; margin: 18px 0 10px;
+  }
+
+  .server-list { display: flex; flex-direction: column; gap: 8px; }
+  .server {
+    display: flex; align-items: center; padding: 13px 14px;
+    border-radius: 14px; background: var(--card);
+    border: 1px solid var(--card-border);
+    cursor: pointer; transition: 0.25s;
+  }
+  .server.active {
+    border-color: var(--accent); background: rgba(0,212,255,0.1);
+    box-shadow: 0 0 20px rgba(0,212,255,0.25);
+  }
+  .server.locked { opacity: 0.5; position: relative; }
+  .server.locked::after {
+    content: '👑'; position: absolute; right: 12px; top: 50%;
+    transform: translateY(-50%); font-size: 16px;
+  }
+  .server.locked .ping { display: none; }
+  .server .flag { font-size: 22px; margin-right: 12px; }
+  .server .info { flex: 1; }
+  .server .name { font-size: 14px; font-weight: 600; }
+  .server .meta { font-size: 11px; color: #8a90a8; }
+  .server .ping {
+    font-size: 12px; color: #00ffa3;
+    background: rgba(0,255,163,0.1); padding: 3px 8px; border-radius: 8px;
+  }
+  .server.boosted .ping { color: #ffb800; background: rgba(255,184,0,0.15); }
+  .server.boosted .ping::after { content: ' ⚡'; }
+
+  .modes { display: flex; gap: 8px; margin-top: 8px; }
+  .mode {
+    flex: 1; padding: 11px; text-align: center; font-size: 12px;
+    border-radius: 12px; background: var(--card);
+    border: 1px solid var(--card-border);
+    cursor: pointer; transition: 0.25s;
+  }
+  .mode.active {
+    background: linear-gradient(135deg, #7b2ff7, var(--accent));
+    border-color: transparent; color: #fff; font-weight: 600;
+  }
+
+  .stats { display: flex; gap: 10px; margin-top: 20px; }
+  .stat {
+    flex: 1; background: var(--card);
+    border-radius: 12px; padding: 10px; text-align: center;
+    border: 1px solid var(--card-border);
+  }
+  .stat .value { font-size: 15px; font-weight: 700; color: var(--accent); }
+  .stat .key { font-size: 10px; color: #8a90a8; text-transform: uppercase; margin-top: 3px; }
+
+  .footer-note { text-align: center; font-size: 10px; color: #6a7089; margin-top: 18px; }
+
+  .settings-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .back-btn {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: var(--card); border: 1px solid var(--card-border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; transition: 0.25s;
+  }
+  .back-btn:active { transform: scale(0.92); }
+  .settings-header h2 { font-size: 18px; font-weight: 700; }
+
+  .profile-card {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px; border-radius: 18px;
+    background: linear-gradient(135deg, rgba(123,47,247,0.25), rgba(0,212,255,0.15));
+    border: 1px solid var(--card-border);
+    margin-bottom: 18px;
+  }
+  .profile-card .avatar { width: 54px; height: 54px; font-size: 22px; }
+  .profile-card .info { flex: 1; }
+  .profile-card .info .name { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+  .profile-card .info .email { font-size: 12px; color: #b0b6cc; }
+  .profile-card .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+    padding: 4px 10px; border-radius: 8px;
+    background: linear-gradient(135deg, #ffb800, #ff7a00);
+    color: #000;
+  }
+
+  .group {
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 16px; margin-bottom: 14px; overflow: hidden;
+  }
+  .group-title {
+    font-size: 11px; text-transform: uppercase;
+    color: #7a8099; letter-spacing: 1px; padding: 12px 16px 4px;
+  }
+
+  .row {
+    display: flex; align-items: center;
+    padding: 13px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer; transition: 0.2s;
+  }
+  .row:last-child { border-bottom: none; }
+  .row:active { background: rgba(255,255,255,0.04); }
+  .row .row-icon {
+    width: 34px; height: 34px; border-radius: 10px;
+    background: rgba(123,47,247,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; margin-right: 12px; flex-shrink: 0;
+  }
+  .row .row-body { flex: 1; }
+  .row .row-title { font-size: 14px; font-weight: 500; }
+  .row .row-sub { font-size: 11px; color: #8a90a8; margin-top: 2px; }
+
+  .switch {
+    width: 44px; height: 24px; border-radius: 12px;
+    background: rgba(255,255,255,0.15);
+    position: relative; cursor: pointer;
+    transition: 0.3s; flex-shrink: 0;
+  }
+  .switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #fff; transition: 0.3s;
+  }
+  .switch.on { background: linear-gradient(135deg, #7b2ff7, var(--accent)); }
+  .switch.on::after { transform: translateX(20px); }
+
+  .segmented {
+    display: flex; gap: 6px; padding: 4px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 12px; margin: 8px 16px 14px;
+  }
+  .segmented div {
+    flex: 1; text-align: center; font-size: 12px;
+    padding: 8px; border-radius: 9px;
+    cursor: pointer; transition: 0.25s; color: #b0b6cc;
+  }
+  .segmented div.active {
+    background: linear-gradient(135deg, #7b2ff7, var(--accent));
+    color: #fff; font-weight: 600;
+  }
+
+  .colors { display: flex; gap: 10px; padding: 12px 16px; }
+  .color-dot {
+    width: 30px; height: 30px; border-radius: 50%;
+    cursor: pointer; border: 2px solid transparent;
+    transition: 0.25s;
+  }
+  .color-dot.active { border-color: #fff; transform: scale(1.1); }
+
+  .danger-btn {
+    width: 100%; padding: 14px;
+    border-radius: 16px; border: 1px solid rgba(255,92,122,0.3);
+    background: rgba(255,92,122,0.1); color: #ff5c7a;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: 0.25s; margin-top: 6px;
+  }
+
+  .premium-card {
+    padding: 16px; border-radius: 16px;
+    background: linear-gradient(135deg, #ffb800, #ff7a00, #ff2d95);
+    margin-bottom: 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer;
+  }
+  .premium-card .txt h3 { font-size: 15px; color: #fff; margin-bottom: 3px; }
+  .premium-card .txt p { font-size: 11px; color: rgba(255,255,255,0.85); }
+  .premium-card .go {
+    background: #fff; color: #000; font-size: 12px; font-weight: 700;
+    padding: 8px 14px; border-radius: 10px;
+  }
+
+  .subs-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .subs-header h2 { font-size: 18px; font-weight: 700; }
+
+  .balance {
+    background: linear-gradient(135deg, rgba(0,212,255,0.15), rgba(123,47,247,0.15));
+    border: 1px solid var(--card-border);
+    border-radius: 16px; padding: 14px 16px;
+    margin-bottom: 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .balance .lbl { font-size: 11px; color: #b0b6cc; text-transform: uppercase; }
+  .balance .val { font-size: 17px; font-weight: 700; margin-top: 3px; }
+  .balance .status-chip {
+    font-size: 11px; font-weight: 700; padding: 6px 12px;
+    border-radius: 10px; background: rgba(0,255,163,0.15); color: #00ffa3;
+  }
+  .balance .status-chip.off { background: rgba(255,255,255,0.1); color: #b0b6cc; }
+
+  /* ===== ПРОМОКОД ===== */
+  .promo-card {
+    background: linear-gradient(135deg, rgba(255,184,0,0.15), rgba(255,45,149,0.1));
+    border: 1px solid rgba(255,184,0,0.3);
+    border-radius: 16px; padding: 16px;
+    margin-bottom: 16px;
+  }
+  .promo-card .promo-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 700; margin-bottom: 10px;
+    color: #ffb800;
+  }
+  .promo-row {
+    display: flex; gap: 8px;
+  }
+  .promo-input {
+    flex: 1; padding: 12px 14px; border-radius: 12px;
+    border: 1px solid rgba(255,184,0,0.3);
+    background: rgba(0,0,0,0.3); color: #fff;
+    font-size: 14px; font-weight: 600;
+    outline: none; text-transform: uppercase;
+    letter-spacing: 1px; transition: 0.25s;
+  }
+  .promo-input:focus { border-color: #ffb800; box-shadow: 0 0 15px rgba(255,184,0,0.3); }
+  .promo-input::placeholder { color: #6a7089; letter-spacing: 0.5px; }
+  .promo-apply {
+    padding: 12px 20px; border-radius: 12px;
+    border: none; cursor: pointer;
+    background: linear-gradient(135deg, #ffb800, #ff7a00);
+    color: #000; font-weight: 700; font-size: 13px;
+    transition: 0.25s;
+  }
+  .promo-apply:active { transform: scale(0.96); }
+  .promo-apply:disabled { opacity: 0.5; cursor: not-allowed; }
+  .promo-hint {
+    font-size: 11px; color: #b0b6cc; margin-top: 8px; line-height: 1.4;
+  }
+  .promo-hint b {
+    color: #ffb800; background: rgba(255,184,0,0.15);
+    padding: 2px 6px; border-radius: 6px;
+    font-family: monospace; letter-spacing: 1px;
+  }
+  .promo-msg {
+    font-size: 12px; margin-top: 10px; min-height: 16px;
+    text-align: center;
+  }
+  .promo-msg.err { color: #ff5c7a; }
+  .promo-msg.ok  { color: #00ffa3; }
+
+  /* История промокодов в настройках */
+  .promo-history-item {
+    display: flex; align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 13px;
+  }
+  .promo-history-item:last-child { border-bottom: none; }
+  .promo-history-item .code {
+    font-family: monospace; font-weight: 700; color: #ffb800;
+    background: rgba(255,184,0,0.1); padding: 3px 8px;
+    border-radius: 6px; margin-right: 10px;
+    letter-spacing: 1px;
+  }
+  .promo-history-item .info { flex: 1; font-size: 11px; color: #8a90a8; }
+  .promo-history-item .bonus { font-size: 12px; color: #00ffa3; font-weight: 600; }
+  .promo-empty {
+    padding: 16px; text-align: center; font-size: 12px; color: #6a7089;
+  }
+
+  .plan-list { display: flex; flex-direction: column; gap: 10px; }
+  .plan {
+    display: flex; align-items: center;
+    padding: 14px 16px; border-radius: 16px;
+    background: var(--card); border: 1px solid var(--card-border);
+    cursor: pointer; transition: 0.25s;
+    position: relative; overflow: hidden;
+  }
+  .plan.selected {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.1);
+    box-shadow: 0 0 20px rgba(0,212,255,0.25);
+  }
+  .plan .plan-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: rgba(123,47,247,0.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; margin-right: 14px; flex-shrink: 0;
+  }
+  .plan.selected .plan-icon { background: linear-gradient(135deg, #7b2ff7, var(--accent)); }
+  .plan .plan-body { flex: 1; }
+  .plan .plan-title { font-size: 15px; font-weight: 700; }
+  .plan .plan-sub { font-size: 11px; color: #8a90a8; margin-top: 2px; }
+  .plan .plan-price { text-align: right; }
+  .plan .plan-price .price { font-size: 15px; font-weight: 700; color: var(--accent); }
+  .plan .plan-price .stars { font-size: 11px; color: #ffb800; margin-top: 2px; }
+
+  .plan .badge-top {
+    position: absolute; top: 0; right: 0;
+    font-size: 9px; font-weight: 700;
+    background: linear-gradient(135deg, #ffb800, #ff2d95);
+    color: #fff; padding: 3px 10px;
+    border-bottom-left-radius: 10px;
+  }
+
+  .buy-btn {
+    width: 100%; padding: 15px; border-radius: 16px;
+    border: none; cursor: pointer;
+    font-size: 15px; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, #7b2ff7, var(--accent));
+    margin-top: 18px; transition: 0.25s;
+  }
+  .buy-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .pay-note { text-align: center; font-size: 10px; color: #6a7089; margin-top: 12px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 24px;
+    transform: translateX(-50%) translateY(120px);
+    background: linear-gradient(135deg, #7b2ff7, var(--accent));
+    padding: 12px 22px; border-radius: 14px;
+    font-size: 13px; font-weight: 600;
+    box-shadow: 0 10px 40px rgba(123,47,247,0.6);
+    transition: 0.4s; z-index: 999; opacity: 0;
+    max-width: 90vw; text-align: center;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  .info-banner {
+    background: rgba(0,255,163,0.1);
+    border: 1px solid rgba(0,255,163,0.25);
+    padding: 10px 14px; border-radius: 12px;
+    font-size: 12px; color: #00ffa3;
+    margin-bottom: 12px; display: flex;
+    align-items: center; gap: 8px;
+  }
+  .info-banner.hidden { display: none; }
+
+  .killswitch-alert {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+    display: none; align-items: center; justify-content: center;
+    z-index: 9999; flex-direction: column; gap: 16px; padding: 20px;
+  }
+  .killswitch-alert.show { display: flex; }
+  .killswitch-alert .ks-icon { font-size: 50px; }
+  .killswitch-alert .ks-text { font-size: 15px; color: #ff5c7a; font-weight: 700; text-align: center; }
+  .killswitch-alert .ks-sub { font-size: 12px; color: #9aa0b5; text-align: center; max-width: 280px; }
+  .killswitch-alert .btn { max-width: 220px; }
+</style>
+</head>
+<body>
+
+<div id="loader" style="position:fixed;inset:0;background:linear-gradient(135deg,#0f0c29,#302b63);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:16px;">
+  <div style="font-size:40px;">⚡</div>
+  <div style="font-size:16px;color:#9aa0b5;">Загрузка Vex1xVPN...</div>
+</div>
+
+<div class="killswitch-alert" id="ksAlert">
+  <div class="ks-icon">🛡️</div>
+  <div class="ks-text">Kill Switch активен</div>
+  <div class="ks-sub">Трафик заблокирован, так как VPN отключён. Включите VPN или отключите Kill Switch в настройках.</div>
+  <button class="btn" onclick="document.getElementById('ksAlert').classList.remove('show')">Понятно</button>
+</div>
+
+<div class="app" id="appContainer">
+
+  <!-- ГЛАВНЫЙ -->
+  <div class="screen active" id="screenApp">
+    <div class="topbar">
+      <div class="user">
+        <div class="avatar" id="avatar">V</div>
+        <div>
+          <div class="name" id="userName">User</div>
+          <div class="plan" id="userPlan">Free</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="icon-btn" id="openSubs">👑</div>
+        <div class="icon-btn" id="openSettings">
+          ⚙️
+          <div class="dot" id="settingsDot"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-banner hidden" id="infoBanner"></div>
+
+    <div class="power-wrap">
+      <button class="power-btn" id="powerBtn">
+        <div class="icon">🔌</div>
+        <div class="label" id="btnLabel">Off</div>
+      </button>
+    </div>
+
+    <div class="status" id="status">Нажмите для подключения</div>
+
+    <div class="section-title">Сервер</div>
+    <div class="server-list" id="serverList">
+      <div class="server active" data-ping="24" data-tier="free"><div class="flag">🇳🇱</div><div class="info"><div class="name">Нидерланды</div><div class="meta">Амстердам · Игры</div></div><div class="ping">24 ms</div></div>
+      <div class="server" data-ping="38" data-tier="free"><div class="flag">🇩🇪</div><div class="info"><div class="name">Германия</div><div class="meta">Франкфурт · Соцсети</div></div><div class="ping">38 ms</div></div>
+      <div class="server" data-ping="52" data-tier="premium"><div class="flag">🇺🇸</div><div class="info"><div class="name">США</div><div class="meta">Нью-Йорк · Универсальный</div></div><div class="ping">52 ms</div></div>
+      <div class="server" data-ping="71" data-tier="premium"><div class="flag">🇯🇵</div><div class="info"><div class="name">Япония</div><div class="meta">Токио · Игры</div></div><div class="ping">71 ms</div></div>
+    </div>
+
+    <div class="section-title">Режим</div>
+    <div class="modes" id="modes">
+      <div class="mode active" data-mode="game">🎮 Игр
